@@ -9,7 +9,7 @@
     "develop": "npm run build -- --watch",
     "build": "kintone-plugin-packer --ppk dist/private.ppk --out dist/plugin.zip build",
     "lint": "eslint src",
-    "storybook": "start-storybook -p 6006",
+    "storybook": "start-storybook -p 6006 -s build/css",
     "webpack": "webpack",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
