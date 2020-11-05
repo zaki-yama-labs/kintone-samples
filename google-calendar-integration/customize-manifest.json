@@ -1,5 +1,5 @@
 {
-    "app": "1",
+    "app": "63",
     "scope": "ALL",
     "desktop": {
         "js": ["dist/js/bundle.js"],
