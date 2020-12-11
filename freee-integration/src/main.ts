@@ -28,4 +28,21 @@ type KintoneEvent = {
       '<a href="https://app.secure.freee.co.jp/developers/applications" target="_blank">freee連携アプリ設定を開く</a>' +
       "</div>";
   });
+
+  // 初回認証を実施するためのコードを追加
+  kintone.events.on(
+    ["app.record.create.submit.success", "app.record.edit.submit.success"],
+    function (event: KintoneEvent) {
+      location.href =
+        "https://accounts.secure.freee.co.jp/public_api/authorize?" +
+        "client_id=" +
+        event.record.clientId.value +
+        "&redirect_uri=" +
+        encodeURIComponent(
+          "https://" + location.host + "/k/" + kintone.app.getId() + "/"
+        ) +
+        "&response_type=code";
+      return event;
+    }
+  );
 })();
