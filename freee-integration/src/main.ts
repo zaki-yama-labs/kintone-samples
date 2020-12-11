@@ -45,4 +45,74 @@ type KintoneEvent = {
       return event;
     }
   );
+
+  // コールバックURLに対応するJavaScriptを作成
+  kintone.events.on("app.record.index.show", async (event: KintoneEvent) => {
+    const params = {
+      app: kintone.app.getId(),
+      query: "作成者 in (LOGINUSER())",
+    };
+    const resp = await kintone.api("/k/v1/records", "GET", params);
+    if (resp.records.length !== 1) return;
+
+    // freee の認可コード付きで開かれた場合のみ処理する
+    const queryString = location.search;
+    const queryParams = new URLSearchParams(queryString);
+    const code = queryParams.get("code");
+    if (!code) {
+      alert("freee の認証情報取得に失敗しました。");
+      return;
+    }
+
+    const record = resp.records[0];
+    const body =
+      "grant_type=authorization_code" +
+      `&client_id=${record.clientId.value}` +
+      `&client_secret=${record.clientSecret.value}` +
+      `&redirect_uri=${encodeURIComponent(
+        `https://${location.host}/k/${kintone.app.getId()}/`
+      )}` +
+      `&code=${code}`;
+    const header = {
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+
+    const tokenResp = await kintone.proxy(
+      "https://accounts.secure.freee.co.jp/public_api/token",
+      "POST",
+      header,
+      body
+    );
+    // tokenResp[0]: body
+    // tokenResp[1]: status
+    // tokenResp[2]: headers
+
+    // TODO: status チェック
+
+    console.log(tokenResp);
+    const credentials = JSON.parse(tokenResp[0]);
+    // 有効期限を日付に変換
+    const expiredDateTime = new Date(
+      credentials.created_at * 1000 + credentials.expires_in * 1000
+    );
+
+    const putParams = {
+      app: kintone.app.getId(),
+      id: record.$id.value,
+      record: {
+        accessToken: {
+          value: credentials.access_token,
+        },
+        refreshToken: {
+          value: credentials.refresh_token,
+        },
+        expiresDateTime: {
+          value: expiredDateTime.toISOString(),
+        },
+      },
+    };
+
+    await kintone.api("/k/v1/record", "PUT", putParams);
+    alert("認証に成功しました");
+  });
 })();
