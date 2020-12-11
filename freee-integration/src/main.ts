@@ -2,7 +2,7 @@ declare let kintone: any;
 declare let process: any;
 
 type KintoneEvent = {
-  [key: string]: any;
+  record: KintoneRecord;
 };
 
 type KintoneRecord = {
@@ -24,6 +24,9 @@ type KintoneRecord = {
   expiresDateTime: {
     value: string;
   };
+  state: {
+    value: string;
+  };
 };
 
 type RawCredentials = {
@@ -34,6 +37,24 @@ type RawCredentials = {
 };
 
 (function () {
+  // UUIDを生成する
+  function generateUuid() {
+    // https://github.com/GoogleChrome/chrome-platform-analytics/blob/master/src/internal/identifier.js
+    // const FORMAT: string = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+    const chars = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".split("");
+    for (let i = 0, len = chars.length; i < len; i++) {
+      switch (chars[i]) {
+        case "x":
+          chars[i] = Math.floor(Math.random() * 16).toString(16);
+          break;
+        case "y":
+          chars[i] = (Math.floor(Math.random() * 4) + 8).toString(16);
+          break;
+      }
+    }
+    return chars.join("");
+  }
+
   async function saveCredentials(
     record: KintoneRecord,
     credentials: RawCredentials
@@ -83,7 +104,14 @@ type RawCredentials = {
       '<a href="https://app.secure.freee.co.jp/developers/applications" target="_blank">freee連携アプリ設定を開く</a>' +
       "</div>";
   });
-
+  kintone.events.on(
+    ["app.record.create.submit", "app.record.edit.submit"],
+    function (event: KintoneEvent) {
+      // UUIDをstateに一時保存する
+      event.record.state.value = generateUuid();
+      return event;
+    }
+  );
   // 初回認証を実施するためのコードを追加
   kintone.events.on(
     ["app.record.create.submit.success", "app.record.edit.submit.success"],
@@ -96,7 +124,8 @@ type RawCredentials = {
         encodeURIComponent(
           "https://" + location.host + "/k/" + kintone.app.getId() + "/"
         ) +
-        "&response_type=code";
+        "&response_type=code" +
+        `&state=${event.record.state.value}`;
       return event;
     }
   );
@@ -148,6 +177,11 @@ type RawCredentials = {
       await saveCredentials(record, JSON.parse(tokenResp[0]));
       alert("アクセストークンを更新しました");
     } else if (code) {
+      const state = queryParams.get("state");
+      if (state !== record.state.value) {
+        alert("freeeの認証情報取得に失敗しました");
+        return;
+      }
       // freee の認可コード付きで開かれた場合のみ処理する
       const header = {
         "Content-Type": "application/x-www-form-urlencoded",
