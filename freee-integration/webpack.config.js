@@ -22,7 +22,5 @@ module.exports = {
   resolve: {
     extensions: [".ts", ".tsx", ".js"],
   },
-  plugins: [
-    new webpack.EnvironmentPlugin(["API_KEY", "CLIENT_ID", "CALENDAR_ID"]),
-  ],
+  plugins: [],
 };
