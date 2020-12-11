@@ -28,4 +28,14 @@ type KintoneEvent = {
     }
     return event;
   });
+
+  // 新規作成画面のリンクからOAuth画面を開く
+  kintone.events.on(["app.record.create.show"], (event: KintoneEvent) => {
+    const header = kintone.app.record.getHeaderMenuSpaceElement();
+    console.log(header);
+    header.innerHTML =
+      '<div style="padding: 15px 30px">' +
+      '<a href="https://app.secure.freee.co.jp/developers/applications" target="_blank">freee連携アプリ設定を開く</a>' +
+      "</div>";
+  });
 })();
