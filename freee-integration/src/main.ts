@@ -5,7 +5,62 @@ type KintoneEvent = {
   [key: string]: any;
 };
 
+type KintoneRecord = {
+  $id: {
+    value: string;
+  };
+  clientId: {
+    value: string;
+  };
+  clientSecret: {
+    value: string;
+  };
+  accessToken: {
+    value: string;
+  };
+  refreshToken: {
+    value: string;
+  };
+  expiresDateTime: {
+    value: string;
+  };
+};
+
+type RawCredentials = {
+  created_at: number;
+  expires_in: number;
+  access_token: string;
+  refresh_token: string;
+};
+
 (function () {
+  async function saveCredentials(
+    record: KintoneRecord,
+    credentials: RawCredentials
+  ) {
+    // 有効期限を日付に変換
+    const expiredDateTime = new Date(
+      credentials.created_at * 1000 + credentials.expires_in * 1000
+    );
+
+    const putParams = {
+      app: kintone.app.getId(),
+      id: record.$id.value,
+      record: {
+        accessToken: {
+          value: credentials.access_token,
+        },
+        refreshToken: {
+          value: credentials.refresh_token,
+        },
+        expiresDateTime: {
+          value: expiredDateTime.toISOString(),
+        },
+      },
+    };
+
+    await kintone.api("/k/v1/record", "PUT", putParams);
+  }
   // 保存済みのfreee認証がない場合、レコードの新規作成に移動する
   kintone.events.on(["app.record.index.show"], async (event: KintoneEvent) => {
     const params = {
@@ -55,14 +110,74 @@ type KintoneEvent = {
     const resp = await kintone.api("/k/v1/records", "GET", params);
     if (resp.records.length !== 1) return;
 
-    const record = resp.records[0];
+    const record: KintoneRecord = resp.records[0];
 
-    // freee の認可コード付きで開かれた場合のみ処理する
     const queryString = location.search;
     const queryParams = new URLSearchParams(queryString);
     const code = queryParams.get("code");
 
-    if (!code) {
+    // 有効期限判定
+    let valid = false;
+    if (record.expiresDateTime.value) {
+      const expiresDateTime = new Date(record.expiresDateTime.value);
+      if (new Date() < expiresDateTime && record.accessToken.value) {
+        valid = true;
+      }
+    }
+
+    // 有効期限切れの場合
+    if (!valid && record.refreshToken.value) {
+      console.log("Try to refresh access token...");
+      const header = {
+        "Content-Type": "application/x-www-form-urlencoded",
+      };
+      const body =
+        "grant_type=refresh_token" +
+        `&client_id=${record.clientId.value}` +
+        `&client_secret=${record.clientSecret.value}` +
+        `&redirect_uri=${encodeURIComponent(
+          `https://${location.host}/k/${kintone.app.getId()}/`
+        )}` +
+        `&refresh_token=${record.refreshToken.value}`;
+      const tokenResp = await kintone.proxy(
+        "https://accounts.secure.freee.co.jp/public_api/token",
+        "POST",
+        header,
+        body
+      );
+      await saveCredentials(record, JSON.parse(tokenResp[0]));
+      alert("アクセストークンを更新しました");
+    } else if (code) {
+      // freee の認可コード付きで開かれた場合のみ処理する
+      const header = {
+        "Content-Type": "application/x-www-form-urlencoded",
+      };
+      const body =
+        "grant_type=authorization_code" +
+        `&client_id=${record.clientId.value}` +
+        `&client_secret=${record.clientSecret.value}` +
+        `&redirect_uri=${encodeURIComponent(
+          `https://${location.host}/k/${kintone.app.getId()}/`
+        )}` +
+        `&code=${code}`;
+
+      const tokenResp = await kintone.proxy(
+        "https://accounts.secure.freee.co.jp/public_api/token",
+        "POST",
+        header,
+        body
+      );
+      // tokenResp[0]: body
+      // tokenResp[1]: status
+      // tokenResp[2]: headers
+
+      // TODO: status チェック
+
+      console.log(tokenResp);
+      const credentials = JSON.parse(tokenResp[0]);
+      saveCredentials(record, credentials);
+      alert("認証に成功しました");
+    } else {
       // 認証情報を使ってAPIを呼び出す
       const header = {
         Authorization: "Bearer " + record.accessToken.value,
@@ -85,55 +200,5 @@ type KintoneEvent = {
       alert("取得した事業所名\n" + result.companies[0].display_name);
       return "success";
     }
-
-    const body =
-      "grant_type=authorization_code" +
-      `&client_id=${record.clientId.value}` +
-      `&client_secret=${record.clientSecret.value}` +
-      `&redirect_uri=${encodeURIComponent(
-        `https://${location.host}/k/${kintone.app.getId()}/`
-      )}` +
-      `&code=${code}`;
-    const header = {
-      "Content-Type": "application/x-www-form-urlencoded",
-    };
-
-    const tokenResp = await kintone.proxy(
-      "https://accounts.secure.freee.co.jp/public_api/token",
-      "POST",
-      header,
-      body
-    );
-    // tokenResp[0]: body
-    // tokenResp[1]: status
-    // tokenResp[2]: headers
-
-    // TODO: status チェック
-
-    console.log(tokenResp);
-    const credentials = JSON.parse(tokenResp[0]);
-    // 有効期限を日付に変換
-    const expiredDateTime = new Date(
-      credentials.created_at * 1000 + credentials.expires_in * 1000
-    );
-
-    const putParams = {
-      app: kintone.app.getId(),
-      id: record.$id.value,
-      record: {
-        accessToken: {
-          value: credentials.access_token,
-        },
-        refreshToken: {
-          value: credentials.refresh_token,
-        },
-        expiresDateTime: {
-          value: expiredDateTime.toISOString(),
-        },
-      },
-    };
-
-    await kintone.api("/k/v1/record", "PUT", putParams);
-    alert("認証に成功しました");
   });
 })();
