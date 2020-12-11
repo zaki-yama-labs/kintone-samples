@@ -1,0 +1,12 @@
+{
+  "app": "64",
+  "scope": "ALL",
+  "desktop": {
+    "js": ["https://apis.google.com/js/api.js", "dist/js/bundle.js"],
+    "css": []
+  },
+  "mobile": {
+    "js": [],
+    "css": []
+  }
+}
