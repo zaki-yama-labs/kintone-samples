@@ -55,16 +55,37 @@ type KintoneEvent = {
     const resp = await kintone.api("/k/v1/records", "GET", params);
     if (resp.records.length !== 1) return;
 
+    const record = resp.records[0];
+
     // freee の認可コード付きで開かれた場合のみ処理する
     const queryString = location.search;
     const queryParams = new URLSearchParams(queryString);
     const code = queryParams.get("code");
+
     if (!code) {
-      alert("freee の認証情報取得に失敗しました。");
-      return;
+      // 認証情報を使ってAPIを呼び出す
+      const header = {
+        Authorization: "Bearer " + record.accessToken.value,
+      };
+
+      const fetchCompaniesResp = await kintone.proxy(
+        "https://api.freee.co.jp/api/1/companies",
+        "GET",
+        header,
+        {}
+      );
+
+      if (fetchCompaniesResp[1] !== 200 && fetchCompaniesResp[1] !== 201) {
+        console.log(fetchCompaniesResp);
+        alert("APIの呼び出しが失敗しました");
+        return;
+      }
+      const result = JSON.parse(fetchCompaniesResp[0]);
+      console.log(result);
+      alert("取得した事業所名\n" + result.companies[0].display_name);
+      return "success";
     }
 
-    const record = resp.records[0];
     const body =
       "grant_type=authorization_code" +
       `&client_id=${record.clientId.value}` +
