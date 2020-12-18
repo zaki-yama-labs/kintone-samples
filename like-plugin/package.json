@@ -1,0 +1,52 @@
+{
+  "name": "typescript-kintone-plugin-template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node scripts/npm-start.js",
+    "upload": "kintone-plugin-uploader dist/plugin.zip --watch --waiting-dialog-ms 3000",
+    "develop": "npm run build -- --watch",
+    "build": "kintone-plugin-packer --ppk dist/private.ppk --out dist/plugin.zip build",
+    "lint": "eslint src",
+    "storybook": "start-storybook -p 6006 -s build/css",
+    "webpack": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zaki-yama/typescript-kintone-plugin-template.git"
+  },
+  "keywords": [
+    "kintone",
+    "TypeScript",
+    "React"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "@babel/core": "7.11.4",
+    "@cybozu/eslint-config": "11.0.0",
+    "@kintone/plugin-packer": "3.0.5",
+    "@kintone/plugin-uploader": "4.1.1",
+    "@storybook/preset-typescript": "3.0.0",
+    "@storybook/react": "6.0.19",
+    "@types/react": "16.9.48",
+    "@types/react-dom": "16.9.8",
+    "@types/storybook__react": "5.2.1",
+    "babel-loader": "8.1.0",
+    "eslint": "7.7.0",
+    "npm-run-all": "4.1.5",
+    "prettier": "2.1.1",
+    "react-docgen-typescript-loader": "3.7.2",
+    "ts-loader": "8.0.3",
+    "typescript": "4.0.2",
+    "webpack": "4.44.1",
+    "webpack-cli": "3.3.12",
+    "webpack-dev-server": "3.11.0"
+  }
+}
